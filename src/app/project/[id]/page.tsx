@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useParams } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { useProject } from '@/lib/hooks/useProjects';
 import { useArticles } from '@/lib/hooks/useArticles';
 import { useQuotesByProject } from '@/lib/hooks/useQuotes';
@@ -17,6 +18,7 @@ import { toast } from 'sonner';
 export default function ProjectPage() {
   const params = useParams();
   const projectId = params.id as string;
+  const queryClient = useQueryClient();
   
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -92,9 +94,13 @@ export default function ProjectPage() {
     setIsAnalyzing(false);
     setAnalysisArticles([]);
     setSelectedArticles([]);
+    
+    // Invalidate queries to refresh data
+    queryClient.invalidateQueries({ queryKey: ['articles', 'project', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['quotes', 'project', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['projects', projectId] });
+    
     toast.success('Analysis completed successfully!');
-    // Refresh articles to show updated analysis results
-    window.location.reload();
   };
 
   const handleAnalysisCancel = () => {
@@ -119,9 +125,12 @@ export default function ProjectPage() {
 
   const handleImportComplete = () => {
     setActiveSessionId(null);
+    
+    // Invalidate queries to refresh data
+    queryClient.invalidateQueries({ queryKey: ['articles', 'project', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['projects', projectId] });
+    
     toast.success('Import completed successfully!');
-    // Refresh articles data
-    window.location.reload();
   };
 
   const handleImportError = (error: string) => {
@@ -175,11 +184,11 @@ export default function ProjectPage() {
             {/* Sidebar */}
             <ProjectSidebar
               project={project}
-              onImportArticles={handleImportArticles}
+              onImportStart={handleImportStart}
               onRunAnalysis={handleRunAnalysis}
               onExportProject={handleExportProject}
               onDeleteProject={handleDeleteProject}
-              isImporting={isImporting}
+              isImporting={!!activeSessionId}
               isAnalyzing={isAnalyzing}
               selectedArticles={selectedArticles}
               analysisProgress={{
@@ -203,12 +212,13 @@ export default function ProjectPage() {
               {/* Analysis Queue */}
               {isAnalyzing && analysisArticles.length > 0 && (
                 <div className="p-6 pb-0">
-                  <AnalysisQueue
-                    projectId={projectId}
-                    articleIds={analysisArticles}
-                    onComplete={handleAnalysisComplete}
-                    onCancel={handleAnalysisCancel}
-                  />
+                <AnalysisQueue
+                  projectId={projectId}
+                  articleIds={analysisArticles}
+                  onComplete={handleAnalysisComplete}
+                  onCancel={handleAnalysisCancel}
+                  queryClient={queryClient}
+                />
                 </div>
               )}
 
