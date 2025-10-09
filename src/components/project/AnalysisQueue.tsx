@@ -9,23 +9,37 @@ import { Progress } from '@/components/ui/progress';
 import { CheckCircle, XCircle, Loader2, AlertCircle, X } from 'lucide-react';
 import { AnalysisQueueItem } from '@/types';
 import { useCreateBatch, useStartBatch, useBatchStatus, useCancelBatch } from '@/lib/hooks/useAnalysis';
-import { toast } from 'sonner';
+
+export interface AnalysisProgress {
+  currentBatch: number;
+  totalBatches: number;
+  currentBatchArticles: string[];
+  overallElapsedTime: number;
+  batchElapsedTime: number;
+  isPaused: boolean;
+  hasError: boolean;
+}
 
 interface AnalysisQueueProps {
   projectId: string;
   articleIds: string[];
   onComplete: () => void;
   onCancel: () => void;
+  onError?: (error: string) => void;
   queryClient: QueryClient;
+  onProgressUpdate?: (progress: AnalysisProgress) => void;
+  onBatchNotification?: (message: string, type: 'success' | 'error' | 'info') => void;
 }
 
-export function AnalysisQueue({ projectId, articleIds, onComplete, onCancel, queryClient }: AnalysisQueueProps) {
+export function AnalysisQueue({ projectId, articleIds, onComplete, onCancel, onError, queryClient, onProgressUpdate, onBatchNotification }: AnalysisQueueProps) {
   const [queue, setQueue] = useState<AnalysisQueueItem[]>([]);
   const [currentBatchIndex, setCurrentBatchIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [batchStartTime, setBatchStartTime] = useState<number | null>(null);
-  const [elapsedTime, setElapsedTime] = useState(0);
-  const [isProcessing, setIsProcessing] = useState(false); // Add processing flag
+  const [overallStartTime, setOverallStartTime] = useState<number | null>(null);
+  const [batchElapsedTime, setBatchElapsedTime] = useState(0);
+  const [overallElapsedTime, setOverallElapsedTime] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const createBatch = useCreateBatch();
   const startBatch = useStartBatch();
@@ -54,18 +68,46 @@ export function AnalysisQueue({ projectId, articleIds, onComplete, onCancel, que
     }));
 
     setQueue(initialQueue);
+    // Start overall timer when queue is initialized
+    setOverallStartTime(Date.now());
   }, [articleIds]);
 
   // Track elapsed time for current batch
   useEffect(() => {
     if (currentBatch?.status === 'running' && batchStartTime) {
       const timer = setInterval(() => {
-        setElapsedTime(Math.floor((Date.now() - batchStartTime) / 1000));
+        setBatchElapsedTime(Math.floor((Date.now() - batchStartTime) / 1000));
       }, 1000);
 
       return () => clearInterval(timer);
     }
   }, [currentBatch?.status, batchStartTime]);
+
+  // Track overall elapsed time
+  useEffect(() => {
+    if (overallStartTime && !isPaused) {
+      const timer = setInterval(() => {
+        setOverallElapsedTime(Math.floor((Date.now() - overallStartTime) / 1000));
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [overallStartTime, isPaused]);
+
+  // Report progress updates to parent
+  useEffect(() => {
+    if (onProgressUpdate && queue.length > 0) {
+      onProgressUpdate({
+        currentBatch: currentBatchIndex + 1,
+        totalBatches: queue.length,
+        currentBatchArticles: currentBatch?.articleIds || [],
+        overallElapsedTime,
+        batchElapsedTime,
+        isPaused,
+        hasError: currentBatch?.status === 'failed',
+      });
+    }
+  }, [currentBatchIndex, queue.length, currentBatch, overallElapsedTime, batchElapsedTime, isPaused, onProgressUpdate]);
 
   // Start the first batch when queue is ready
   useEffect(() => {
@@ -123,7 +165,7 @@ export function AnalysisQueue({ projectId, articleIds, onComplete, onCancel, que
 
       // Set start time for elapsed time tracking
       setBatchStartTime(Date.now());
-      setElapsedTime(0);
+      setBatchElapsedTime(0);
 
       // Create batch
       const createResponse = await createBatch.mutateAsync({
@@ -141,7 +183,7 @@ export function AnalysisQueue({ projectId, articleIds, onComplete, onCancel, que
       // Start batch processing
       await startBatch.mutateAsync(createResponse.batchId);
       
-      toast.success(`Batch ${batchIndex + 1} of ${queue.length} started`);
+      onBatchNotification?.(`Batch ${batchIndex + 1} of ${queue.length} started`, 'success');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to start batch';
       handleBatchFailed(errorMessage);
@@ -183,7 +225,7 @@ export function AnalysisQueue({ projectId, articleIds, onComplete, onCancel, que
 
       // Set start time for elapsed time tracking
       setBatchStartTime(Date.now());
-      setElapsedTime(0);
+      setBatchElapsedTime(0);
 
       // Create batch
       const createResponse = await createBatch.mutateAsync({
@@ -201,7 +243,7 @@ export function AnalysisQueue({ projectId, articleIds, onComplete, onCancel, que
       // Start batch processing
       await startBatch.mutateAsync(createResponse.batchId);
       
-      toast.success(`Batch ${currentBatchIndex + 1} of ${queue.length} started`);
+      onBatchNotification?.(`Batch ${currentBatchIndex + 1} of ${queue.length} started`, 'success');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to start batch';
       handleBatchFailed(errorMessage);
@@ -212,7 +254,7 @@ export function AnalysisQueue({ projectId, articleIds, onComplete, onCancel, que
 
   const handleBatchComplete = () => {
     console.log('handleBatchComplete called:', { currentBatchIndex, queueLength: queue.length });
-    toast.success(`Batch ${currentBatchIndex + 1} of ${queue.length} completed`);
+    onBatchNotification?.(`Batch ${currentBatchIndex + 1} of ${queue.length} completed`, 'success');
 
     // Clear processing flag immediately
     setIsProcessing(false);
@@ -256,14 +298,18 @@ export function AnalysisQueue({ projectId, articleIds, onComplete, onCancel, que
     } else {
       // All batches complete
       console.log('All batches completed');
-      toast.success('All batches completed successfully!');
+      onBatchNotification?.('All batches completed successfully!', 'success');
       onComplete();
     }
   };
 
   const handleBatchFailed = (error: string) => {
     setIsPaused(true);
-    toast.error(`Batch ${currentBatchIndex + 1} failed: ${error}`);
+    
+    // Call parent error handler instead of toast
+    if (onError) {
+      onError(`Batch ${currentBatchIndex + 1} failed: ${error}`);
+    }
     
     setQueue(prev => prev.map((item, idx) =>
       idx === currentBatchIndex
@@ -339,9 +385,9 @@ export function AnalysisQueue({ projectId, articleIds, onComplete, onCancel, que
             <div className="mt-3 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-400">Elapsed Time:</span>
-                <span className="text-blue-400 font-mono">{formatElapsedTime(elapsedTime)}</span>
+                <span className="text-blue-400 font-mono">{formatElapsedTime(overallElapsedTime)}</span>
               </div>
-              {elapsedTime > 30 && (
+              {overallElapsedTime > 30 && (
                 <div className="text-xs text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded p-2">
                   ⏱️ Analysis is processing... Token-heavy articles may take 3-5 minutes per batch.
                 </div>
@@ -408,9 +454,9 @@ export function AnalysisQueue({ projectId, articleIds, onComplete, onCancel, que
               {batch.status === 'running' && (
                 <div className="mt-2 space-y-1">
                   <Progress value={batch.progress} className="h-1" />
-                  {index === currentBatchIndex && elapsedTime > 0 && (
+                  {index === currentBatchIndex && batchElapsedTime > 0 && (
                     <div className="text-xs text-slate-400">
-                      Running for {formatElapsedTime(elapsedTime)}
+                      Running for {formatElapsedTime(batchElapsedTime)}
                     </div>
                   )}
                 </div>

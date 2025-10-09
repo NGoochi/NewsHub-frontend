@@ -10,11 +10,17 @@ import {
   Download, 
   Trash2, 
   BarChart3,
-  FileUp
+  FileUp,
+  Loader2,
+  Clock,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Project } from '@/types';
 import { ImportModalNew } from './ImportModalNew';
+import { AnalysisProgress } from './AnalysisQueue';
+import { Progress } from '@/components/ui/progress';
 
 interface ProjectSidebarProps {
   project: Project;
@@ -25,11 +31,20 @@ interface ProjectSidebarProps {
   isImporting?: boolean;
   isAnalyzing?: boolean;
   selectedArticles?: string[];
-  analysisProgress?: {
-    total: number;
-    completed: number;
-    failed: number;
+  analysisProgress?: AnalysisProgress | null;
+  totalArticles?: number;
+  analyzedArticles?: number;
+  analysisStatus?: {
+    type: 'idle' | 'starting' | 'running' | 'completed' | 'error';
+    message?: string;
   };
+  batchNotifications?: Array<{
+    id: string;
+    message: string;
+    type: 'success' | 'error' | 'info';
+    timestamp: number;
+  }>;
+  articles?: Array<{ id: string; analysedAt?: string | null }>;
 }
 
 export function ProjectSidebar({
@@ -41,9 +56,20 @@ export function ProjectSidebar({
   isImporting = false,
   isAnalyzing = false,
   selectedArticles = [],
-  analysisProgress
+  analysisProgress = null,
+  totalArticles = 0,
+  analyzedArticles = 0,
+  analysisStatus = { type: 'idle' },
+  batchNotifications = [],
+  articles = []
 }: ProjectSidebarProps) {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+  // Calculate unanalyzed articles in selection
+  const unanalyzedSelectedCount = selectedArticles.filter(id => {
+    const article = articles.find(a => a.id === id);
+    return article && !article.analysedAt;
+  }).length;
 
   const handleRunAnalysis = () => {
     if (selectedArticles.length === 0) {
@@ -80,7 +106,7 @@ export function ProjectSidebar({
           <div className="flex items-center justify-between text-sm">
             <span className="text-slate-400">Analyzed</span>
             <span className="text-slate-200">
-              {analysisProgress?.completed || 0} / {analysisProgress?.total || 0}
+              {analyzedArticles} / {totalArticles}
             </span>
           </div>
         </CardContent>
@@ -135,7 +161,7 @@ export function ProjectSidebar({
 
           <Button
             onClick={handleRunAnalysis}
-            disabled={isAnalyzing || selectedArticles.length === 0}
+            disabled={isAnalyzing || unanalyzedSelectedCount === 0}
             className="w-full bg-green-600 hover:bg-green-700 text-white"
           >
             {isAnalyzing ? (
@@ -146,31 +172,99 @@ export function ProjectSidebar({
             ) : (
               <>
                 <Play className="w-4 h-4 mr-2" />
-                Run Analysis {selectedArticles.length > 0 && `(${selectedArticles.length})`}
+                Run Analysis {unanalyzedSelectedCount > 0 && `(${unanalyzedSelectedCount})`}
               </>
             )}
           </Button>
 
-          {/* Analysis Status */}
-          {analysisProgress && (
+          {/* Status Messages */}
+          {analysisStatus.type !== 'idle' && (
+            <div className={`text-xs p-2.5 rounded-lg border ${
+              analysisStatus.type === 'error' 
+                ? 'bg-red-500/10 border-red-500/30 text-red-400'
+                : analysisStatus.type === 'completed'
+                ? 'bg-green-500/10 border-green-500/30 text-green-400'
+                : 'bg-blue-500/10 border-blue-500/30 text-blue-400'
+            }`}>
+              <div className="flex items-start space-x-2">
+                {analysisStatus.type === 'error' && <XCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />}
+                {analysisStatus.type === 'completed' && <CheckCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />}
+                {analysisStatus.type === 'starting' && <Loader2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 animate-spin" />}
+                {analysisStatus.type === 'running' && <Loader2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 animate-spin" />}
+                <span className="flex-1">{analysisStatus.message}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Batch Notifications */}
+          {batchNotifications.length > 0 && (
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-400">Progress</span>
-                <span className="text-slate-200">
-                  {analysisProgress.completed} / {analysisProgress.total}
+              {batchNotifications.map((notification) => (
+                <div
+                  key={notification.id}
+                  className={`text-xs p-2 rounded-lg border ${
+                    notification.type === 'error'
+                      ? 'bg-red-500/10 border-red-500/30 text-red-400'
+                      : notification.type === 'success'
+                      ? 'bg-green-500/10 border-green-500/30 text-green-400'
+                      : 'bg-blue-500/10 border-blue-500/30 text-blue-400'
+                  }`}
+                >
+                  <div className="flex items-start space-x-2">
+                    {notification.type === 'error' && <XCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />}
+                    {notification.type === 'success' && <CheckCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />}
+                    {notification.type === 'info' && <Loader2 className="w-3 h-3 mt-0.5 flex-shrink-0 animate-spin" />}
+                    <span className="flex-1">{notification.message}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Analysis Progress */}
+          {isAnalyzing && analysisProgress && (
+            <div className="space-y-3 pt-2 border-t border-slate-700">
+              {/* Batch Info */}
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400 flex items-center">
+                  <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+                  Batch {analysisProgress.currentBatch} of {analysisProgress.totalBatches}
+                </span>
+                <span className="text-blue-400 font-mono">
+                  {Math.floor(analysisProgress.batchElapsedTime / 60)}:{(analysisProgress.batchElapsedTime % 60).toString().padStart(2, '0')}
                 </span>
               </div>
-              <div className="w-full bg-slate-700 rounded-full h-2">
-                <div
-                  className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                  style={{
-                    width: `${(analysisProgress.completed / analysisProgress.total) * 100}%`
-                  }}
-                />
+
+              {/* Three-Layer Progress Bar */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-400">Overall Progress</span>
+                  <span className="text-slate-300">
+                    {analyzedArticles} / {totalArticles} analyzed
+                  </span>
+                </div>
+                <div className="relative w-full h-3 bg-slate-800 rounded-full overflow-hidden">
+                  {/* Base layer - Total articles (gray) */}
+                  <div className="absolute inset-0 bg-slate-700 rounded-full" />
+                  
+                  {/* Target layer - Articles queued for analysis (light green) */}
+                  <div 
+                    className="absolute inset-0 bg-green-400/30 rounded-full transition-all duration-300"
+                    style={{ width: `${(analyzedArticles + analysisProgress.currentBatchArticles.length) / totalArticles * 100}%` }}
+                  />
+                  
+                  {/* Completed layer - Analyzed articles (dark green) */}
+                  <div 
+                    className="absolute inset-0 bg-green-600 rounded-full transition-all duration-300"
+                    style={{ width: `${analyzedArticles / totalArticles * 100}%` }}
+                  />
+                </div>
               </div>
-              {analysisProgress.failed > 0 && (
-                <div className="flex items-center text-sm text-red-400">
-                  <span>{analysisProgress.failed} failed</span>
+
+              {/* Overall Timer */}
+              {analysisProgress.overallElapsedTime > 30 && (
+                <div className="text-xs text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded p-2">
+                  ⏱️ Token-heavy articles may take 3-5 minutes per batch
                 </div>
               )}
             </div>
