@@ -52,10 +52,12 @@ export const useBatchStatus = (batchId: string, enabled: boolean = true) => {
       if (data?.status === 'completed' || data?.status === 'failed' || data?.status === 'cancelled') {
         return false;
       }
-      // Poll every 2 seconds while running
-      return 2000;
+      // Poll every 5 seconds while running (reduced from 2 seconds)
+      return 5000;
     },
     refetchIntervalInBackground: true,
+    // Add stale time to prevent unnecessary refetches
+    staleTime: 3000,
   });
 };
 

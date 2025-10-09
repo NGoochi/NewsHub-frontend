@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { QueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,14 +16,16 @@ interface AnalysisQueueProps {
   articleIds: string[];
   onComplete: () => void;
   onCancel: () => void;
+  queryClient: QueryClient;
 }
 
-export function AnalysisQueue({ projectId, articleIds, onComplete, onCancel }: AnalysisQueueProps) {
+export function AnalysisQueue({ projectId, articleIds, onComplete, onCancel, queryClient }: AnalysisQueueProps) {
   const [queue, setQueue] = useState<AnalysisQueueItem[]>([]);
   const [currentBatchIndex, setCurrentBatchIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [batchStartTime, setBatchStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false); // Add processing flag
 
   const createBatch = useCreateBatch();
   const startBatch = useStartBatch();
@@ -31,14 +34,16 @@ export function AnalysisQueue({ projectId, articleIds, onComplete, onCancel }: A
   const currentBatch = queue[currentBatchIndex];
   const { data: batchStatus } = useBatchStatus(
     currentBatch?.batchId || '',
-    !!currentBatch?.batchId && currentBatch.status === 'running'
+    // CRITICAL: Only poll the CURRENT batch, not all batches
+    !!currentBatch?.batchId && 
+    (currentBatch.status === 'running' || currentBatch.status === 'pending')
   );
 
-  // Initialize queue by splitting articles into chunks of 10
+  // Initialize queue by splitting articles into chunks of 5
   useEffect(() => {
     const chunks: string[][] = [];
-    for (let i = 0; i < articleIds.length; i += 10) {
-      chunks.push(articleIds.slice(i, i + 10));
+    for (let i = 0; i < articleIds.length; i += 5) {
+      chunks.push(articleIds.slice(i, i + 5));
     }
 
     const initialQueue: AnalysisQueueItem[] = chunks.map((chunk) => ({
@@ -91,13 +96,95 @@ export function AnalysisQueue({ projectId, articleIds, onComplete, onCancel }: A
     }
   }, [batchStatus]);
 
-  const processNextBatch = async () => {
-    if (isPaused || currentBatchIndex >= queue.length) return;
+  const startNextBatchDirectly = async (batchIndex: number) => {
+    console.log('startNextBatchDirectly called for batch:', batchIndex);
+    
+    if (isPaused || batchIndex >= queue.length || isProcessing) {
+      console.log('startNextBatchDirectly blocked:', { isPaused, batchIndex, queueLength: queue.length, isProcessing });
+      return;
+    }
 
-    const batch = queue[currentBatchIndex];
-    if (!batch || batch.batchId) return;
+    const batch = queue[batchIndex];
+    if (!batch || batch.batchId) {
+      console.log('startNextBatchDirectly: no batch or batch already has ID:', { batch, batchId: batch?.batchId });
+      return;
+    }
+
+    console.log('Directly starting batch processing for batch:', batchIndex);
+    setIsProcessing(true); // Set processing flag
 
     try {
+      // IMMEDIATELY mark batch as running (optimistic update for instant UI feedback)
+      setQueue(prev => prev.map((item, idx) =>
+        idx === batchIndex
+          ? { ...item, status: 'running' as const }
+          : item
+      ));
+
+      // Set start time for elapsed time tracking
+      setBatchStartTime(Date.now());
+      setElapsedTime(0);
+
+      // Create batch
+      const createResponse = await createBatch.mutateAsync({
+        projectId,
+        articleIds: batch.articleIds,
+      });
+
+      // Update queue with batch ID
+      setQueue(prev => prev.map((item, idx) =>
+        idx === batchIndex
+          ? { ...item, batchId: createResponse.batchId }
+          : item
+      ));
+
+      // Start batch processing
+      await startBatch.mutateAsync(createResponse.batchId);
+      
+      toast.success(`Batch ${batchIndex + 1} of ${queue.length} started`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to start batch';
+      handleBatchFailed(errorMessage);
+    } finally {
+      setIsProcessing(false); // Clear processing flag
+    }
+  };
+
+  const processNextBatch = async () => {
+    console.log('processNextBatch called:', { 
+      isPaused, 
+      currentBatchIndex, 
+      queueLength: queue.length, 
+      isProcessing,
+      batch: queue[currentBatchIndex]
+    });
+    
+    if (isPaused || currentBatchIndex >= queue.length || isProcessing) {
+      console.log('processNextBatch blocked:', { isPaused, currentBatchIndex, queueLength: queue.length, isProcessing });
+      return;
+    }
+
+    const batch = queue[currentBatchIndex];
+    if (!batch || batch.batchId) {
+      console.log('processNextBatch: no batch or batch already has ID:', { batch, batchId: batch?.batchId });
+      return;
+    }
+
+    console.log('Starting batch processing for batch:', currentBatchIndex);
+    setIsProcessing(true); // Set processing flag
+
+    try {
+      // IMMEDIATELY mark batch as running (optimistic update for instant UI feedback)
+      setQueue(prev => prev.map((item, idx) =>
+        idx === currentBatchIndex
+          ? { ...item, status: 'running' as const }
+          : item
+      ));
+
+      // Set start time for elapsed time tracking
+      setBatchStartTime(Date.now());
+      setElapsedTime(0);
+
       // Create batch
       const createResponse = await createBatch.mutateAsync({
         projectId,
@@ -107,13 +194,9 @@ export function AnalysisQueue({ projectId, articleIds, onComplete, onCancel }: A
       // Update queue with batch ID
       setQueue(prev => prev.map((item, idx) =>
         idx === currentBatchIndex
-          ? { ...item, batchId: createResponse.batchId, status: 'running' }
+          ? { ...item, batchId: createResponse.batchId }
           : item
       ));
-
-      // Set start time for elapsed time tracking
-      setBatchStartTime(Date.now());
-      setElapsedTime(0);
 
       // Start batch processing
       await startBatch.mutateAsync(createResponse.batchId);
@@ -122,19 +205,57 @@ export function AnalysisQueue({ projectId, articleIds, onComplete, onCancel }: A
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to start batch';
       handleBatchFailed(errorMessage);
+    } finally {
+      setIsProcessing(false); // Clear processing flag
     }
   };
 
   const handleBatchComplete = () => {
+    console.log('handleBatchComplete called:', { currentBatchIndex, queueLength: queue.length });
     toast.success(`Batch ${currentBatchIndex + 1} of ${queue.length} completed`);
+
+    // Clear processing flag immediately
+    setIsProcessing(false);
+
+    // IMMEDIATELY invalidate queries to show results
+    queryClient.invalidateQueries({ queryKey: ['articles'] });
+    queryClient.invalidateQueries({ queryKey: ['quotes'] });
+    
+    // Force refetch of current project data
+    queryClient.refetchQueries({ queryKey: ['articles'] });
+    queryClient.refetchQueries({ queryKey: ['quotes'] });
 
     // Move to next batch
     if (currentBatchIndex + 1 < queue.length) {
-      setCurrentBatchIndex(prev => prev + 1);
-      // Process next batch after a short delay
-      setTimeout(() => processNextBatch(), 1000);
+      const nextBatchIndex = currentBatchIndex + 1;
+      console.log('Moving to next batch:', nextBatchIndex);
+      setCurrentBatchIndex(nextBatchIndex);
+      
+      // Process next batch with a small delay to ensure state updates
+      setTimeout(() => {
+        console.log('Starting next batch...');
+        // Force the next batch to start by directly calling the logic
+        const nextBatch = queue[nextBatchIndex];
+        if (nextBatch && !nextBatch.batchId && !isProcessing) {
+          console.log('Directly starting next batch:', nextBatchIndex);
+          startNextBatchDirectly(nextBatchIndex);
+        } else {
+          console.log('Falling back to processNextBatch...');
+          processNextBatch();
+        }
+      }, 500); // Slightly longer delay to ensure state is updated
+      
+      // Fallback: if next batch doesn't start within 2 seconds, try again
+      setTimeout(() => {
+        const nextBatch = queue[nextBatchIndex];
+        if (nextBatch && !nextBatch.batchId && nextBatch.status === 'pending') {
+          console.log('Fallback: retrying next batch start...');
+          startNextBatchDirectly(nextBatchIndex);
+        }
+      }, 2000);
     } else {
       // All batches complete
+      console.log('All batches completed');
       toast.success('All batches completed successfully!');
       onComplete();
     }
