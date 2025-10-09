@@ -39,11 +39,11 @@ export function AnalysisQueue({ projectId, articleIds, onComplete, onCancel, que
     (currentBatch.status === 'running' || currentBatch.status === 'pending')
   );
 
-  // Initialize queue by splitting articles into chunks of 5
+  // Initialize queue by splitting articles into chunks of 3
   useEffect(() => {
     const chunks: string[][] = [];
-    for (let i = 0; i < articleIds.length; i += 5) {
-      chunks.push(articleIds.slice(i, i + 5));
+    for (let i = 0; i < articleIds.length; i += 3) {
+      chunks.push(articleIds.slice(i, i + 3));
     }
 
     const initialQueue: AnalysisQueueItem[] = chunks.map((chunk) => ({
