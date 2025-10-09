@@ -21,6 +21,8 @@ export function AnalysisQueue({ projectId, articleIds, onComplete, onCancel }: A
   const [queue, setQueue] = useState<AnalysisQueueItem[]>([]);
   const [currentBatchIndex, setCurrentBatchIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [batchStartTime, setBatchStartTime] = useState<number | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
 
   const createBatch = useCreateBatch();
   const startBatch = useStartBatch();
@@ -48,6 +50,17 @@ export function AnalysisQueue({ projectId, articleIds, onComplete, onCancel }: A
 
     setQueue(initialQueue);
   }, [articleIds]);
+
+  // Track elapsed time for current batch
+  useEffect(() => {
+    if (currentBatch?.status === 'running' && batchStartTime) {
+      const timer = setInterval(() => {
+        setElapsedTime(Math.floor((Date.now() - batchStartTime) / 1000));
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [currentBatch?.status, batchStartTime]);
 
   // Start the first batch when queue is ready
   useEffect(() => {
@@ -97,6 +110,10 @@ export function AnalysisQueue({ projectId, articleIds, onComplete, onCancel }: A
           ? { ...item, batchId: createResponse.batchId, status: 'running' }
           : item
       ));
+
+      // Set start time for elapsed time tracking
+      setBatchStartTime(Date.now());
+      setElapsedTime(0);
 
       // Start batch processing
       await startBatch.mutateAsync(createResponse.batchId);
@@ -163,6 +180,13 @@ export function AnalysisQueue({ projectId, articleIds, onComplete, onCancel }: A
     (currentBatch?.progress ? Math.floor((currentBatch.progress / 100) * currentBatch.articleIds.length) : 0);
   const overallProgress = (processedArticles / totalArticles) * 100;
 
+  // Format elapsed time as MM:SS
+  const formatElapsedTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
     <Card className="bg-slate-900/40 border-slate-800/20">
       <CardHeader>
@@ -188,6 +212,21 @@ export function AnalysisQueue({ projectId, articleIds, onComplete, onCancel }: A
             </span>
           </div>
           <Progress value={overallProgress} className="h-2" />
+          
+          {/* Elapsed Time and Info Message */}
+          {currentBatch?.status === 'running' && (
+            <div className="mt-3 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400">Elapsed Time:</span>
+                <span className="text-blue-400 font-mono">{formatElapsedTime(elapsedTime)}</span>
+              </div>
+              {elapsedTime > 30 && (
+                <div className="text-xs text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded p-2">
+                  ⏱️ Analysis is processing... Token-heavy articles may take 3-5 minutes per batch.
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Batch List */}
@@ -246,8 +285,13 @@ export function AnalysisQueue({ projectId, articleIds, onComplete, onCancel }: A
 
               {/* Batch Progress Bar */}
               {batch.status === 'running' && (
-                <div className="mt-2">
+                <div className="mt-2 space-y-1">
                   <Progress value={batch.progress} className="h-1" />
+                  {index === currentBatchIndex && elapsedTime > 0 && (
+                    <div className="text-xs text-slate-400">
+                      Running for {formatElapsedTime(elapsedTime)}
+                    </div>
+                  )}
                 </div>
               )}
 

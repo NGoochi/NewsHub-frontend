@@ -128,3 +128,20 @@ export interface AnalysisQueueItem {
   progress: number;
   error?: string;
 }
+
+export interface Quote {
+  id: string;
+  articleId: string;
+  stakeholderNameGemini: string;
+  stakeholderAffiliationGemini: string;
+  quoteGemini: string;
+  
+  // Optional relation
+  article?: {
+    id: string;
+    title: string;
+    newsOutlet: string;
+    dateWritten: string;
+    url: string;
+  };
+}

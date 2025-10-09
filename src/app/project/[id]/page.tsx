@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useProject } from '@/lib/hooks/useProjects';
 import { useArticles } from '@/lib/hooks/useArticles';
+import { useQuotesByProject } from '@/lib/hooks/useQuotes';
 import { usePreviewImport, useStartImport, useSessionStatus } from '@/lib/hooks/useImport';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { ProjectSidebar } from '@/components/project/ProjectSidebar';
@@ -26,6 +27,7 @@ export default function ProjectPage() {
 
   const { data: project, isLoading: projectLoading, error: projectError } = useProject(projectId);
   const { data: articlesData, isLoading: articlesLoading, error: articlesError } = useArticles(projectId);
+  const { data: quotesData, isLoading: quotesLoading } = useQuotesByProject(projectId);
   
   // Import hooks
   const previewImport = usePreviewImport();
@@ -212,13 +214,14 @@ export default function ProjectPage() {
 
               {/* Articles Table */}
               <div className="flex-1 p-6">
-              <ArticlesTable 
-                projectId={projectId}
-                articles={articlesData || []}
-                isLoading={articlesLoading}
-                selectedArticles={selectedArticles}
-                onSelectionChange={setSelectedArticles}
-              />
+                <ArticlesTable 
+                  projectId={projectId}
+                  articles={articlesData || []}
+                  isLoading={articlesLoading}
+                  selectedArticles={selectedArticles}
+                  onSelectionChange={setSelectedArticles}
+                  quotesData={quotesData || []}
+                />
               </div>
             </div>
           </div>

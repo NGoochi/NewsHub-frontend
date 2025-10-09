@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Article } from '@/types';
+import { Article, Quote } from '@/types';
 import { useDeleteArticle } from '@/lib/hooks/useArticles';
-import { ExternalLink, Trash2, Calendar, User, Building, ChevronDown, ChevronRight } from 'lucide-react';
+import { ExternalLink, Trash2, Calendar, User, Building, ChevronDown, ChevronRight, MessageSquareQuote, Copy, Check } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -17,11 +17,23 @@ interface ArticlesTableProps {
   isLoading: boolean;
   selectedArticles: string[];
   onSelectionChange: (selectedIds: string[]) => void;
+  quotesData: Quote[];
 }
 
-export function ArticlesTable({ projectId, articles, isLoading, selectedArticles, onSelectionChange }: ArticlesTableProps) {
+export function ArticlesTable({ projectId, articles, isLoading, selectedArticles, onSelectionChange, quotesData }: ArticlesTableProps) {
   const [expandedArticles, setExpandedArticles] = useState<Set<string>>(new Set());
+  const [copiedQuoteId, setCopiedQuoteId] = useState<string | null>(null);
   const deleteArticle = useDeleteArticle();
+
+  // Create a map of article ID to its quotes
+  const articleQuotesMap = useMemo(() => {
+    const map = new Map<string, Quote[]>();
+    quotesData.forEach(quote => {
+      const existing = map.get(quote.articleId) || [];
+      map.set(quote.articleId, [...existing, quote]);
+    });
+    return map;
+  }, [quotesData]);
 
   const handleSelectArticle = (articleId: string, checked: boolean) => {
     if (checked) {
@@ -67,6 +79,20 @@ export function ArticlesTable({ projectId, articles, isLoading, selectedArticles
       } catch (error) {
         toast.error('Failed to delete article');
       }
+    }
+  };
+
+  const handleCopyQuote = async (quote: Quote) => {
+    const formattedQuote = `"${quote.quoteGemini}"\n\n— ${quote.stakeholderNameGemini}, ${quote.stakeholderAffiliationGemini}`;
+    
+    try {
+      await navigator.clipboard.writeText(formattedQuote);
+      setCopiedQuoteId(quote.id);
+      toast.success('Quote copied to clipboard');
+      
+      setTimeout(() => setCopiedQuoteId(null), 2000);
+    } catch (error) {
+      toast.error('Failed to copy quote');
     }
   };
 
@@ -204,6 +230,14 @@ export function ArticlesTable({ projectId, articles, isLoading, selectedArticles
                           <Calendar className="w-3 h-3" />
                           <span>{formatDistanceToNow(new Date(article.dateWritten), { addSuffix: true })}</span>
                         </div>
+
+                        {/* Quote Count */}
+                        {article.analysedAt && articleQuotesMap.has(article.id) && (
+                          <div className="flex items-center space-x-1">
+                            <MessageSquareQuote className="w-3 h-3" />
+                            <span>{articleQuotesMap.get(article.id)!.length} {articleQuotesMap.get(article.id)!.length === 1 ? 'quote' : 'quotes'}</span>
+                          </div>
+                        )}
                       </div>
                         </div>
                         
@@ -249,6 +283,50 @@ export function ArticlesTable({ projectId, articles, isLoading, selectedArticles
                       <div>
                         <h4 className="text-sm font-medium text-slate-200 mb-2">Summary</h4>
                         <p className="text-sm text-slate-300">{article.summaryGemini}</p>
+                      </div>
+                    )}
+                    
+                    {/* Quotes Section */}
+                    {article.analysedAt && articleQuotesMap.has(article.id) && articleQuotesMap.get(article.id)!.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-medium text-slate-200 mb-3 flex items-center space-x-2">
+                          <MessageSquareQuote className="w-4 h-4" />
+                          <span>Quotes ({articleQuotesMap.get(article.id)!.length})</span>
+                        </h4>
+                        <div className="space-y-3">
+                          {articleQuotesMap.get(article.id)!.map((quote) => (
+                            <div key={quote.id} className="bg-slate-800/30 rounded-lg p-3 border border-slate-700/30">
+                              {/* Stakeholder Info */}
+                              <div className="flex items-start justify-between mb-2">
+                                <div>
+                                  <div className="text-sm font-medium text-slate-200">
+                                    {quote.stakeholderNameGemini}
+                                  </div>
+                                  <div className="text-xs text-slate-400">
+                                    {quote.stakeholderAffiliationGemini}
+                                  </div>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleCopyQuote(quote)}
+                                  className="h-7 w-7 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 flex-shrink-0"
+                                  title="Copy quote"
+                                >
+                                  {copiedQuoteId === quote.id ? (
+                                    <Check className="w-3 h-3 text-green-500" />
+                                  ) : (
+                                    <Copy className="w-3 h-3" />
+                                  )}
+                                </Button>
+                              </div>
+                              {/* Quote Text */}
+                              <p className="text-sm text-slate-300 italic leading-relaxed">
+                                "{quote.quoteGemini}"
+                              </p>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                     

@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient, { analysisApiClient } from './client';
 import { AnalysisBatch, CreateBatchRequest, CreateBatchResponse } from '@/types';
 
 export const analysisApi = {
@@ -7,9 +7,9 @@ export const analysisApi = {
     return await apiClient.post('/analysis/batch', data);
   },
 
-  // Start processing a batch
+  // Start processing a batch (uses long timeout client)
   startBatch: async (batchId: string): Promise<AnalysisBatch> => {
-    return await apiClient.post(`/analysis/batch/${batchId}/start`);
+    return await analysisApiClient.post(`/analysis/batch/${batchId}/start`);
   },
 
   // Get batch status
