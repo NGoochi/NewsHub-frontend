@@ -184,11 +184,11 @@ export default function ProjectPage() {
             {/* Sidebar */}
             <ProjectSidebar
               project={project}
-              onImportArticles={handleImportArticles}
+              onImportStart={handleImportStart}
               onRunAnalysis={handleRunAnalysis}
               onExportProject={handleExportProject}
               onDeleteProject={handleDeleteProject}
-              isImporting={isImporting}
+              isImporting={!!activeSessionId}
               isAnalyzing={isAnalyzing}
               selectedArticles={selectedArticles}
               analysisProgress={{

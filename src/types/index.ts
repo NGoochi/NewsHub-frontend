@@ -35,7 +35,7 @@ export interface Article {
   url: string;
   fullBodyText: string;
   dateWritten: string;
-  inputMethod: 'newsapi' | 'manual' | 'csv';
+  inputMethod: 'newsapi' | 'manual' | 'csv' | 'pdf';
   
   // Gemini analysis fields
   summaryGemini?: string;
@@ -95,6 +95,26 @@ export interface Source {
   country: string;
   language: string;
   sourceUri: string;
+  region?: string;
+}
+
+// Boolean query types for NewsAPI
+export interface BooleanQueryTerm {
+  id: string;
+  type: 'term' | 'group';
+  operator: 'AND' | 'OR' | 'NOT';
+  value?: string;
+  children?: BooleanQueryTerm[];
+}
+
+// Manual article entry
+export interface ManualArticle {
+  source: string;
+  title: string;
+  author?: string;
+  url?: string;
+  body: string;
+  publishDate: string;
 }
 
 export interface AnalysisBatch {
