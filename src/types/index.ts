@@ -156,6 +156,8 @@ export interface Quote {
   stakeholderNameGemini: string;
   stakeholderAffiliationGemini: string;
   quoteGemini: string;
+  createdAt: string;
+  updatedAt: string;
   
   // Optional relation
   article?: {

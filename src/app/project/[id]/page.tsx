@@ -322,6 +322,7 @@ export default function ProjectPage() {
                   onSelectionChange={setSelectedArticles}
                   quotesData={quotesData || []}
                   analyzingArticles={analyzingArticles}
+                  projectName={project?.name}
                 />
               </div>
             </div>

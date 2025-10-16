@@ -17,7 +17,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Article, Quote } from '@/types';
 import { useDeleteArticle } from '@/lib/hooks/useArticles';
-import { ExternalLink, Trash2, Calendar, User, Building, ChevronDown, ChevronRight, MessageSquareQuote, Copy, Check } from 'lucide-react';
+import { exportArticlesToCSV, exportQuotesToCSV } from '@/lib/utils/csvExport';
+import { ExternalLink, Trash2, Calendar, User, Building, ChevronDown, ChevronRight, MessageSquareQuote, Copy, Check, Download, FileText } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -29,9 +30,10 @@ interface ArticlesTableProps {
   onSelectionChange: (selectedIds: string[]) => void;
   quotesData: Quote[];
   analyzingArticles?: string[];
+  projectName?: string;
 }
 
-export function ArticlesTable({ articles, isLoading, selectedArticles, onSelectionChange, quotesData, analyzingArticles = [] }: ArticlesTableProps) {
+export function ArticlesTable({ projectId, articles, isLoading, selectedArticles, onSelectionChange, quotesData, analyzingArticles = [], projectName }: ArticlesTableProps) {
   const [expandedArticles, setExpandedArticles] = useState<Set<string>>(new Set());
   const [copiedQuoteId, setCopiedQuoteId] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -97,6 +99,33 @@ export function ArticlesTable({ articles, isLoading, selectedArticles, onSelecti
     } catch {
       toast.error('Failed to delete articles');
       setIsDeleteDialogOpen(false);
+    }
+  };
+
+  const handleExportArticles = () => {
+    try {
+      exportArticlesToCSV(articles, selectedArticles, quotesData, projectName);
+      toast.success(`Exported ${selectedArticles.length} articles to CSV`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to export articles');
+    }
+  };
+
+  const handleExportQuotes = () => {
+    try {
+      const selectedQuotes = quotesData.filter(quote => 
+        selectedArticles.includes(quote.articleId)
+      );
+      
+      if (selectedQuotes.length === 0) {
+        toast.warning('No quotes found in selected articles');
+        return;
+      }
+      
+      exportQuotesToCSV(articles, selectedArticles, quotesData, projectName);
+      toast.success(`Exported ${selectedQuotes.length} quotes to CSV`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to export quotes');
     }
   };
 
@@ -227,15 +256,40 @@ export function ArticlesTable({ articles, isLoading, selectedArticles, onSelecti
           </div>
           
           {selectedArticles.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleBulkDelete}
-              className="text-red-400 border-red-600 hover:bg-red-900/20"
-            >
-              <Trash2 className="w-3 h-3 mr-2" />
-              Delete Selected
-            </Button>
+            <div className="flex items-center space-x-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleExportArticles}
+                className="text-muted-foreground hover:text-green-500 hover:bg-green-500/10 px-2 py-1 h-7"
+                title="Export selected articles to CSV"
+              >
+                <Download className="w-3 h-3 mr-1" />
+                <span className="text-xs">Articles</span>
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleExportQuotes}
+                className="text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10 px-2 py-1 h-7"
+                title="Export quotes from selected articles to CSV"
+              >
+                <FileText className="w-3 h-3 mr-1" />
+                <span className="text-xs">Quotes</span>
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleBulkDelete}
+                className="text-muted-foreground hover:text-red-500 hover:bg-red-500/10 px-2 py-1 h-7"
+                title="Delete selected articles"
+              >
+                <Trash2 className="w-3 h-3 mr-1" />
+                <span className="text-xs">Delete</span>
+              </Button>
+            </div>
           )}
         </div>
       </CardHeader>
