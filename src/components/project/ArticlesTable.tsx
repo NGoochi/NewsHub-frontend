@@ -17,7 +17,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Article, Quote } from '@/types';
 import { useDeleteArticle } from '@/lib/hooks/useArticles';
-import { ExternalLink, Trash2, Calendar, User, Building, ChevronDown, ChevronRight, MessageSquareQuote, Copy, Check } from 'lucide-react';
+import { exportArticlesToCSV, exportQuotesToCSV } from '@/lib/utils/csvExport';
+import { ExternalLink, Trash2, Calendar, User, Building, ChevronDown, ChevronRight, MessageSquareQuote, Copy, Check, Download, FileText } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -29,9 +30,10 @@ interface ArticlesTableProps {
   onSelectionChange: (selectedIds: string[]) => void;
   quotesData: Quote[];
   analyzingArticles?: string[];
+  projectName?: string;
 }
 
-export function ArticlesTable({ projectId, articles, isLoading, selectedArticles, onSelectionChange, quotesData, analyzingArticles = [] }: ArticlesTableProps) {
+export function ArticlesTable({ projectId, articles, isLoading, selectedArticles, onSelectionChange, quotesData, analyzingArticles = [], projectName }: ArticlesTableProps) {
   const [expandedArticles, setExpandedArticles] = useState<Set<string>>(new Set());
   const [copiedQuoteId, setCopiedQuoteId] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -75,6 +77,33 @@ export function ArticlesTable({ projectId, articles, isLoading, selectedArticles
     toast.info(`Bulk delete functionality will be implemented soon (${selectedArticles.length} articles selected)`);
     setIsDeleteDialogOpen(false);
     onSelectionChange([]);
+  };
+
+  const handleExportArticles = () => {
+    try {
+      exportArticlesToCSV(articles, selectedArticles, quotesData, projectName);
+      toast.success(`Exported ${selectedArticles.length} articles to CSV`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to export articles');
+    }
+  };
+
+  const handleExportQuotes = () => {
+    try {
+      const selectedQuotes = quotesData.filter(quote => 
+        selectedArticles.includes(quote.articleId)
+      );
+      
+      if (selectedQuotes.length === 0) {
+        toast.warning('No quotes found in selected articles');
+        return;
+      }
+      
+      exportQuotesToCSV(articles, selectedArticles, quotesData, projectName);
+      toast.success(`Exported ${selectedQuotes.length} quotes to CSV`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to export quotes');
+    }
   };
 
   const allSelected = articles.length > 0 && selectedArticles.length === articles.length;
@@ -204,15 +233,37 @@ export function ArticlesTable({ projectId, articles, isLoading, selectedArticles
           </div>
           
           {selectedArticles.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleBulkDelete}
-              className="text-red-400 border-red-600 hover:bg-red-900/20"
-            >
-              <Trash2 className="w-3 h-3 mr-2" />
-              Delete Selected
-            </Button>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportArticles}
+                className="text-green-400 border-green-600 hover:bg-green-900/20"
+              >
+                <Download className="w-3 h-3 mr-2" />
+                Export Articles
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportQuotes}
+                className="text-blue-400 border-blue-600 hover:bg-blue-900/20"
+              >
+                <FileText className="w-3 h-3 mr-2" />
+                Export Quotes
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBulkDelete}
+                className="text-red-400 border-red-600 hover:bg-red-900/20"
+              >
+                <Trash2 className="w-3 h-3 mr-2" />
+                Delete Selected
+              </Button>
+            </div>
           )}
         </div>
       </CardHeader>
