@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useProject } from '@/lib/hooks/useProjects';
@@ -10,9 +10,11 @@ import { usePreviewImport, useStartImport, useSessionStatus } from '@/lib/hooks/
 import { AppHeader } from '@/components/layout/AppHeader';
 import { ProjectSidebar } from '@/components/project/ProjectSidebar';
 import { ArticlesTable } from '@/components/project/ArticlesTable';
+import { ArticleFilters } from '@/components/project/ArticleFilters';
 import { ImportProgress } from '@/components/project/ImportProgress';
-import { AnalysisQueue } from '@/components/project/AnalysisQueue';
+import { AnalysisQueue, AnalysisProgress } from '@/components/project/AnalysisQueue';
 import { DeleteConfirmDialog } from '@/components/dashboard/DeleteConfirmDialog';
+import { Article } from '@/types';
 import { toast } from 'sonner';
 
 export default function ProjectPage() {
@@ -26,6 +28,19 @@ export default function ProjectPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedArticles, setSelectedArticles] = useState<string[]>([]);
   const [analysisArticles, setAnalysisArticles] = useState<string[]>([]);
+  const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
+  const [analyzingArticles, setAnalyzingArticles] = useState<string[]>([]);
+  const [analysisProgress, setAnalysisProgress] = useState<AnalysisProgress | null>(null);
+  const [analysisStatus, setAnalysisStatus] = useState<{
+    type: 'idle' | 'starting' | 'running' | 'completed' | 'error';
+    message?: string;
+  }>({ type: 'idle' });
+  const [batchNotifications, setBatchNotifications] = useState<Array<{
+    id: string;
+    message: string;
+    type: 'success' | 'error' | 'info';
+    timestamp: number;
+  }>>([]);
 
   const { data: project, isLoading: projectLoading, error: projectError } = useProject(projectId);
   const { data: articlesData, isLoading: articlesLoading, error: articlesError } = useArticles(projectId);
@@ -35,6 +50,34 @@ export default function ProjectPage() {
   const previewImport = usePreviewImport();
   const startImport = useStartImport();
   const { data: sessionData } = useSessionStatus(activeSessionId || '', !!activeSessionId);
+
+  // Memoized callback to prevent infinite loops
+  const handleFilteredArticles = useCallback((filtered: Article[]) => {
+    setFilteredArticles(filtered);
+  }, []);
+
+  // Handle analysis progress updates
+  const handleAnalysisProgress = useCallback((progress: AnalysisProgress) => {
+    setAnalysisProgress(progress);
+    setAnalyzingArticles(progress.currentBatchArticles);
+  }, []);
+
+  // Handle batch notifications
+  const handleBatchNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
+    const notification = {
+      id: Math.random().toString(36).substr(2, 9),
+      message,
+      type,
+      timestamp: Date.now(),
+    };
+    
+    setBatchNotifications(prev => [...prev, notification]);
+    
+    // Auto-remove notifications after 5 seconds
+    setTimeout(() => {
+      setBatchNotifications(prev => prev.filter(n => n.id !== notification.id));
+    }, 5000);
+  }, []);
 
   const handleImportArticles = async (params: {
     searchTerms: string[];
@@ -80,33 +123,61 @@ export default function ProjectPage() {
   };
 
   const handleRunAnalysis = async (articleIds: string[]) => {
-    if (articleIds.length === 0) {
-      toast.error('Please select articles to analyze');
+    // Filter out already-analyzed articles
+    const unanalyzedArticleIds = articleIds.filter(id => {
+      const article = articlesData?.find(a => a.id === id);
+      return article && !article.analysedAt;
+    });
+
+    if (unanalyzedArticleIds.length === 0) {
+      setAnalysisStatus({ type: 'error', message: 'No unanalyzed articles selected' });
       return;
     }
 
     setIsAnalyzing(true);
-    setAnalysisArticles(articleIds);
-    toast.info(`Starting analysis for ${articleIds.length} articles...`);
+    setAnalysisArticles(unanalyzedArticleIds);
+    setAnalysisStatus({ 
+      type: 'starting', 
+      message: `Starting analysis for ${unanalyzedArticleIds.length} article${unanalyzedArticleIds.length > 1 ? 's' : ''}...` 
+    });
+    
+    // Change to running after a brief moment
+    setTimeout(() => {
+      setAnalysisStatus({ type: 'running', message: 'Analysis in progress...' });
+    }, 1000);
   };
 
   const handleAnalysisComplete = () => {
     setIsAnalyzing(false);
     setAnalysisArticles([]);
     setSelectedArticles([]);
+    setAnalyzingArticles([]);
+    setAnalysisProgress(null);
     
     // Invalidate queries to refresh data
     queryClient.invalidateQueries({ queryKey: ['articles', 'project', projectId] });
     queryClient.invalidateQueries({ queryKey: ['quotes', 'project', projectId] });
     queryClient.invalidateQueries({ queryKey: ['projects', projectId] });
     
-    toast.success('Analysis completed successfully!');
+    setAnalysisStatus({ type: 'completed', message: 'Analysis completed successfully!' });
+    
+    // Clear success message after 5 seconds
+    setTimeout(() => {
+      setAnalysisStatus({ type: 'idle' });
+    }, 5000);
   };
 
   const handleAnalysisCancel = () => {
     setIsAnalyzing(false);
     setAnalysisArticles([]);
-    toast.info('Analysis cancelled');
+    setAnalyzingArticles([]);
+    setAnalysisProgress(null);
+    setAnalysisStatus({ type: 'error', message: 'Analysis cancelled' });
+    
+    // Clear error message after 5 seconds
+    setTimeout(() => {
+      setAnalysisStatus({ type: 'idle' });
+    }, 5000);
   };
 
   const handleExportProject = () => {
@@ -191,11 +262,12 @@ export default function ProjectPage() {
               isImporting={!!activeSessionId}
               isAnalyzing={isAnalyzing}
               selectedArticles={selectedArticles}
-              analysisProgress={{
-                total: articlesData?.length || 0,
-                completed: articlesData?.filter(article => article.analysedAt).length || 0,
-                failed: 0
-              }}
+              analysisProgress={analysisProgress}
+              totalArticles={articlesData?.length || 0}
+              analyzedArticles={articlesData?.filter(article => article.analysedAt).length || 0}
+              analysisStatus={analysisStatus}
+              batchNotifications={batchNotifications}
+              articles={articlesData || []}
             />
 
             {/* Main Content */}
@@ -209,28 +281,47 @@ export default function ProjectPage() {
                 />
               )}
 
-              {/* Analysis Queue */}
+              {/* Analysis Queue - Hidden, runs in background */}
               {isAnalyzing && analysisArticles.length > 0 && (
-                <div className="p-6 pb-0">
-                <AnalysisQueue
-                  projectId={projectId}
-                  articleIds={analysisArticles}
-                  onComplete={handleAnalysisComplete}
-                  onCancel={handleAnalysisCancel}
-                  queryClient={queryClient}
-                />
+                <div className="hidden">
+                  <AnalysisQueue
+                    projectId={projectId}
+                    articleIds={analysisArticles}
+                    onComplete={handleAnalysisComplete}
+                    onCancel={handleAnalysisCancel}
+                    onError={(error) => {
+                      setAnalysisStatus({ type: 'error', message: error });
+                      setIsAnalyzing(false);
+                      setAnalyzingArticles([]);
+                      setAnalysisProgress(null);
+                      setTimeout(() => setAnalysisStatus({ type: 'idle' }), 8000);
+                    }}
+                    queryClient={queryClient}
+                    onProgressUpdate={handleAnalysisProgress}
+                    onBatchNotification={handleBatchNotification}
+                  />
                 </div>
               )}
 
               {/* Articles Table */}
               <div className="flex-1 p-6">
+                {/* Article Filters */}
+                {articlesData && articlesData.length > 0 && (
+                  <ArticleFilters
+                    articles={articlesData}
+                    quotes={quotesData || []}
+                    onFilteredArticles={handleFilteredArticles}
+                  />
+                )}
+
                 <ArticlesTable 
                   projectId={projectId}
-                  articles={articlesData || []}
+                  articles={filteredArticles.length > 0 ? filteredArticles : (articlesData || [])}
                   isLoading={articlesLoading}
                   selectedArticles={selectedArticles}
                   onSelectionChange={setSelectedArticles}
                   quotesData={quotesData || []}
+                  analyzingArticles={analyzingArticles}
                 />
               </div>
             </div>

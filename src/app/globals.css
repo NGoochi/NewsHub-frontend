@@ -120,3 +120,29 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Analysis Animation - Rotating Border Gradient */
+@keyframes rotate-gradient {
+  0% {
+    border-image-source: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 25%, #3b82f6 50%, #8b5cf6 75%, #3b82f6 100%);
+  }
+  100% {
+    border-image-source: linear-gradient(90deg, #8b5cf6 0%, #3b82f6 25%, #8b5cf6 50%, #3b82f6 75%, #8b5cf6 100%);
+  }
+}
+
+.analyzing-article {
+  border: 2px solid #3b82f6;
+  border-radius: 0.5rem;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+  animation: pulse-border 2s ease-in-out infinite;
+}
+
+@keyframes pulse-border {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.8);
+  }
+}

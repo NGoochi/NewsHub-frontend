@@ -5,6 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Article, Quote } from '@/types';
 import { useDeleteArticle } from '@/lib/hooks/useArticles';
 import { ExternalLink, Trash2, Calendar, User, Building, ChevronDown, ChevronRight, MessageSquareQuote, Copy, Check } from 'lucide-react';
@@ -18,11 +28,13 @@ interface ArticlesTableProps {
   selectedArticles: string[];
   onSelectionChange: (selectedIds: string[]) => void;
   quotesData: Quote[];
+  analyzingArticles?: string[];
 }
 
-export function ArticlesTable({ projectId, articles, isLoading, selectedArticles, onSelectionChange, quotesData }: ArticlesTableProps) {
+export function ArticlesTable({ projectId, articles, isLoading, selectedArticles, onSelectionChange, quotesData, analyzingArticles = [] }: ArticlesTableProps) {
   const [expandedArticles, setExpandedArticles] = useState<Set<string>>(new Set());
   const [copiedQuoteId, setCopiedQuoteId] = useState<string | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const deleteArticle = useDeleteArticle();
 
   // Create a map of article ID to its quotes
@@ -43,21 +55,29 @@ export function ArticlesTable({ projectId, articles, isLoading, selectedArticles
     }
   };
 
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      // Select all unanalyzed articles
-      const unanalyzedIds = articles
-        .filter(article => !article.analysedAt)
-        .map(article => article.id);
-      onSelectionChange(unanalyzedIds);
-    } else {
+  const handleSelectAll = () => {
+    if (selectedArticles.length === articles.length) {
+      // Deselect all
       onSelectionChange([]);
+    } else {
+      // Select all articles (including analyzed ones)
+      const allIds = articles.map(article => article.id);
+      onSelectionChange(allIds);
     }
   };
 
-  const allSelected = articles.length > 0 && 
-    articles.filter(a => !a.analysedAt).every(article => selectedArticles.includes(article.id));
-  const someSelected = selectedArticles.length > 0 && !allSelected;
+  const handleBulkDelete = () => {
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmBulkDelete = () => {
+    // TODO: Implement bulk delete API call
+    toast.info(`Bulk delete functionality will be implemented soon (${selectedArticles.length} articles selected)`);
+    setIsDeleteDialogOpen(false);
+    onSelectionChange([]);
+  };
+
+  const allSelected = articles.length > 0 && selectedArticles.length === articles.length;
 
   const toggleExpanded = (articleId: string) => {
     setExpandedArticles(prev => {
@@ -158,49 +178,70 @@ export function ArticlesTable({ projectId, articles, isLoading, selectedArticles
     );
   }
 
-      return (
-        <Card className="bg-slate-900/40 border-slate-800/20">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <Checkbox
-                  checked={allSelected}
-                  onCheckedChange={handleSelectAll}
-                  aria-label="Select all articles"
-                  className="data-[state=indeterminate]:bg-blue-600"
-                  {...(someSelected && { 'data-state': 'indeterminate' })}
-                />
-                <CardTitle className="text-slate-100">
-                  Articles ({articles.length})
-                  {selectedArticles.length > 0 && (
-                    <span className="ml-2 text-sm font-normal text-blue-400">
-                      {selectedArticles.length} selected
-                    </span>
-                  )}
-                </CardTitle>
-              </div>
+  return (
+    <Card className="bg-slate-900/40 border-slate-800/20">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col space-y-2">
+            <div className="flex items-center space-x-3">
+              <CardTitle className="text-slate-100">
+                {articles.length} {articles.length === 1 ? 'Article' : 'Articles'}
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSelectAll}
+                className="text-slate-300 border-slate-600 hover:bg-slate-700"
+              >
+                {allSelected ? 'Deselect All' : 'Select All'}
+              </Button>
             </div>
-          </CardHeader>
+            {selectedArticles.length > 0 && (
+              <span className="text-sm text-blue-400">
+                {selectedArticles.length} selected
+              </span>
+            )}
+          </div>
+          
+          {selectedArticles.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBulkDelete}
+              className="text-red-400 border-red-600 hover:bg-red-900/20"
+            >
+              <Trash2 className="w-3 h-3 mr-2" />
+              Delete Selected
+            </Button>
+          )}
+        </div>
+      </CardHeader>
       <CardContent>
         <div className="space-y-4">
           {articles.map((article) => {
             const isExpanded = expandedArticles.has(article.id);
+            const isAnalyzing = analyzingArticles.includes(article.id);
             
                 return (
-                  <div key={article.id} className="bg-slate-800/50 rounded-lg border border-slate-700/50">
+                  <div 
+                    key={article.id} 
+                    className={`rounded-lg transition-all ${
+                      isAnalyzing 
+                        ? 'analyzing-article' 
+                        : 'bg-slate-800/50 border border-slate-700/50'
+                    }`}
+                  >
                     {/* Article Header */}
                     <div className="p-4">
                       <div className="flex items-start space-x-3">
-                        {/* Checkbox - only show for unanalyzed articles */}
-                        {!article.analysedAt && (
-                          <div className="pt-1" onClick={(e) => e.stopPropagation()}>
-                            <Checkbox
-                              checked={selectedArticles.includes(article.id)}
-                              onCheckedChange={(checked) => handleSelectArticle(article.id, checked as boolean)}
-                              aria-label={`Select ${article.title}`}
-                            />
-                          </div>
-                        )}
+                        {/* Checkbox - show for all articles */}
+                        <div className="pt-1" onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={selectedArticles.includes(article.id)}
+                            onCheckedChange={(checked) => handleSelectArticle(article.id, checked as boolean)}
+                            aria-label={`Select ${article.title}`}
+                          />
+                        </div>
                         
                         <div 
                           className="flex-1 min-w-0 cursor-pointer hover:bg-slate-700/30 transition-colors rounded p-2 -m-2"
@@ -369,6 +410,30 @@ export function ArticlesTable({ projectId, articles, isLoading, selectedArticles
           })}
         </div>
       </CardContent>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent className="bg-slate-900 border-slate-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-slate-100">Delete Selected Articles</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400">
+              Are you sure you want to delete {selectedArticles.length} selected article{selectedArticles.length !== 1 ? 's' : ''}? 
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-slate-800 text-slate-100 border-slate-700 hover:bg-slate-700">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmBulkDelete}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
