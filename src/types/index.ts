@@ -4,6 +4,7 @@ export interface Project {
   description: string | null;
   createdAt: string;
   updatedAt: string;
+  archived: boolean;
   _count?: {
     articles: number;
   };

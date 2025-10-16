@@ -4,18 +4,20 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Trash2, ExternalLink, Calendar, FileText } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Edit, ExternalLink, Calendar, FileText } from 'lucide-react';
 import { Project } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 
 interface ProjectCardProps {
   project: Project;
   onEdit: (project: Project) => void;
-  onDelete: (project: Project) => void;
   onView: (project: Project) => void;
+  selected?: boolean;
+  onSelect?: (projectId: string, checked: boolean) => void;
 }
 
-export function ProjectCard({ project, onEdit, onDelete, onView }: ProjectCardProps) {
+export function ProjectCard({ project, onEdit, onView, selected = false, onSelect }: ProjectCardProps) {
   const [isHovered, setIsHovered] = useState(false);
 
   const articleCount = project._count?.articles || project.articles?.length || 0;
@@ -24,22 +26,39 @@ export function ProjectCard({ project, onEdit, onDelete, onView }: ProjectCardPr
 
   return (
     <Card 
-      className="bg-slate-900/40 rounded-2xl shadow-md border border-slate-800/20 hover:border-slate-700/40 transition-all duration-200 cursor-pointer group"
+      className={`bg-slate-900/40 rounded-2xl shadow-md border transition-all duration-200 cursor-pointer group ${
+        selected 
+          ? 'border-blue-500 bg-blue-500/10' 
+          : 'border-slate-800/20 hover:border-slate-700/40'
+      }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={() => onView(project)}
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
-          <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-slate-100 truncate group-hover:text-blue-400 transition-colors">
-              {project.name}
-            </h3>
-            {project.description && (
-              <p className="text-sm text-slate-400 mt-1 line-clamp-2">
-                {project.description}
-              </p>
+          <div className="flex items-start space-x-3 flex-1 min-w-0">
+            {/* Checkbox */}
+            {onSelect && (
+              <div className="pt-1" onClick={(e) => e.stopPropagation()}>
+                <Checkbox
+                  checked={selected}
+                  onCheckedChange={(checked) => onSelect(project.id, checked as boolean)}
+                  aria-label={`Select ${project.name}`}
+                />
+              </div>
             )}
+            
+            <div className="flex-1 min-w-0">
+              <h3 className="text-lg font-semibold text-slate-100 truncate group-hover:text-blue-400 transition-colors">
+                {project.name}
+              </h3>
+              {project.description && (
+                <p className="text-sm text-slate-400 mt-1 line-clamp-2">
+                  {project.description}
+                </p>
+              )}
+            </div>
           </div>
           
           {/* Action buttons - show on hover */}
@@ -54,17 +73,6 @@ export function ProjectCard({ project, onEdit, onDelete, onView }: ProjectCardPr
               }}
             >
               <Edit className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-slate-400 hover:text-red-400 hover:bg-red-500/10"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(project);
-              }}
-            >
-              <Trash2 className="w-4 h-4" />
             </Button>
           </div>
         </div>

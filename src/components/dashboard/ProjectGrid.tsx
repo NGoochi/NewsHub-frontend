@@ -10,10 +10,11 @@ interface ProjectGridProps {
   isLoading: boolean;
   error: Error | null;
   onEdit: (project: Project) => void;
-  onDelete: (project: Project) => void;
   onView: (project: Project) => void;
   onNewProject: () => void;
   onRetry: () => void;
+  selectedProjects?: string[];
+  onSelectProject?: (projectId: string, checked: boolean) => void;
 }
 
 export function ProjectGrid({ 
@@ -21,10 +22,11 @@ export function ProjectGrid({
   isLoading, 
   error, 
   onEdit, 
-  onDelete, 
   onView, 
   onNewProject,
-  onRetry 
+  onRetry,
+  selectedProjects = [],
+  onSelectProject
 }: ProjectGridProps) {
   // Loading state
   if (isLoading) {
@@ -109,8 +111,9 @@ export function ProjectGrid({
           key={project.id}
           project={project}
           onEdit={onEdit}
-          onDelete={onDelete}
           onView={onView}
+          selected={selectedProjects.includes(project.id)}
+          onSelect={onSelectProject}
         />
       ))}
     </div>

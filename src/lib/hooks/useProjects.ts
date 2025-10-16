@@ -58,6 +58,80 @@ export const useUpdateProject = () => {
   });
 };
 
+// Archive project mutation
+export const useArchiveProject = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => projectsApi.archiveProject(id),
+    onSuccess: (_, archivedId) => {
+      // Update the project in cache
+      queryClient.setQueryData(projectKeys.detail(archivedId), (old: any) => 
+        old ? { ...old, archived: true } : old
+      );
+      // Invalidate projects list
+      queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
+    },
+  });
+};
+
+// Unarchive project mutation
+export const useUnarchiveProject = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => projectsApi.unarchiveProject(id),
+    onSuccess: (_, unarchivedId) => {
+      // Update the project in cache
+      queryClient.setQueryData(projectKeys.detail(unarchivedId), (old: any) => 
+        old ? { ...old, archived: false } : old
+      );
+      // Invalidate projects list
+      queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
+    },
+  });
+};
+
+// Bulk archive projects mutation
+export const useBulkArchiveProjects = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (projectIds: string[]) => projectsApi.bulkArchiveProjects(projectIds),
+    onSuccess: () => {
+      // Invalidate ALL project-related queries
+      queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: [...projectKeys.lists(), 'archived'] });
+    },
+  });
+};
+
+// Bulk unarchive projects mutation
+export const useBulkUnarchiveProjects = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (projectIds: string[]) => projectsApi.bulkUnarchiveProjects(projectIds),
+    onSuccess: () => {
+      // Invalidate ALL project-related queries
+      queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: [...projectKeys.lists(), 'archived'] });
+    },
+  });
+};
+
+// Get archived projects
+export const useArchivedProjects = () => {
+  return useQuery({
+    queryKey: [...projectKeys.lists(), 'archived'],
+    queryFn: async () => {
+      const projects = await projectsApi.getProjects();
+      return projects.filter(project => project.archived);
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
 // Delete project mutation
 export const useDeleteProject = () => {
   const queryClient = useQueryClient();
