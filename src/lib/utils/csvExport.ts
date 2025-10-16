@@ -96,7 +96,7 @@ export function exportArticlesToCSV(
     return {
       // Basic article information
       'Title': article.title,
-      'Author': article.author || 'Unknown',
+      'Author': Array.isArray(article.authors) ? article.authors.join(', ') : 'Unknown',
       'Source': article.newsOutlet || 'Unknown',
       'URL': article.url || '',
       'Publication Date': formatDateForCSV(article.dateWritten),
@@ -112,15 +112,13 @@ export function exportArticlesToCSV(
       // Quote information
       'Quote Count': quotes.length,
       'Stakeholders': quotes.map(q => q.stakeholderNameGemini || 'Unknown').join('; '),
-      'Quote Text': quotes.map(q => `"${q.stakeholderNameGemini || 'Unknown'}": ${q.quoteText}`).join(' | '),
+      'Quote Text': quotes.map(q => `"${q.stakeholderNameGemini || 'Unknown'}": ${q.quoteGemini || ''}`).join(' | '),
       
       // Full article content
       'Full Text': article.fullBodyText || '',
       
       // Technical fields
-      'Article ID': article.id,
-      'Created At': formatDateForCSV(article.createdAt),
-      'Updated At': formatDateForCSV(article.updatedAt)
+      'Article ID': article.id
     };
   });
 
@@ -172,7 +170,7 @@ export function exportQuotesToCSV(
     return {
       'Quote ID': quote.id,
       'Article Title': article?.title || 'Unknown Article',
-      'Article Author': article?.author || 'Unknown',
+      'Article Author': Array.isArray(article?.authors) ? article.authors.join(', ') : 'Unknown',
       'Article Source': article?.newsOutlet || 'Unknown',
       'Article URL': article?.url || '',
       'Publication Date': article ? formatDateForCSV(article.dateWritten) : '',
@@ -180,13 +178,10 @@ export function exportQuotesToCSV(
       // Quote information
       'Stakeholder Name': quote.stakeholderNameGemini || 'Unknown',
       'Stakeholder Affiliation': quote.stakeholderAffiliationGemini || '',
-      'Quote Text': quote.quoteText || '',
-      'Quote Context': quote.contextGemini || '',
+      'Quote Text': quote.quoteGemini || '',
       
       // Technical fields
-      'Article ID': quote.articleId,
-      'Created At': formatDateForCSV(quote.createdAt),
-      'Updated At': formatDateForCSV(quote.updatedAt)
+      'Article ID': quote.articleId
     };
   });
 
