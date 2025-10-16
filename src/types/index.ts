@@ -168,3 +168,36 @@ export interface Quote {
     url: string;
   };
 }
+
+export interface Category {
+  id: string;
+  name: string;
+  definition: string;
+  keywords: string[];
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateCategoryData {
+  name: string;
+  definition: string;
+  keywords: string[];
+  sortOrder?: number;
+}
+
+export interface UpdateCategoryData {
+  name?: string;
+  definition?: string;
+  keywords?: string[];
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+export interface ReorderCategoriesData {
+  categoryOrders: Array<{
+    id: string;
+    sortOrder: number;
+  }>;
+}
