@@ -31,7 +31,7 @@ interface ArticlesTableProps {
   analyzingArticles?: string[];
 }
 
-export function ArticlesTable({ projectId, articles, isLoading, selectedArticles, onSelectionChange, quotesData, analyzingArticles = [] }: ArticlesTableProps) {
+export function ArticlesTable({ articles, isLoading, selectedArticles, onSelectionChange, quotesData, analyzingArticles = [] }: ArticlesTableProps) {
   const [expandedArticles, setExpandedArticles] = useState<Set<string>>(new Set());
   const [copiedQuoteId, setCopiedQuoteId] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -70,11 +70,34 @@ export function ArticlesTable({ projectId, articles, isLoading, selectedArticles
     setIsDeleteDialogOpen(true);
   };
 
-  const confirmBulkDelete = () => {
-    // TODO: Implement bulk delete API call
-    toast.info(`Bulk delete functionality will be implemented soon (${selectedArticles.length} articles selected)`);
-    setIsDeleteDialogOpen(false);
-    onSelectionChange([]);
+  const confirmBulkDelete = async () => {
+    try {
+      // Delete articles one by one with progress tracking
+      const totalArticles = selectedArticles.length;
+      let deletedCount = 0;
+      
+      for (const articleId of selectedArticles) {
+        try {
+          await deleteArticle.mutateAsync(articleId);
+          deletedCount++;
+          
+          // Show progress toast
+          if (totalArticles > 1) {
+            toast.info(`Deleting ${deletedCount}/${totalArticles} articles...`);
+          }
+        } catch {
+          console.error(`Failed to delete article ${articleId}`);
+          // Continue with remaining articles
+        }
+      }
+      
+      toast.success(`Successfully deleted ${deletedCount} article${deletedCount !== 1 ? 's' : ''}`);
+      setIsDeleteDialogOpen(false);
+      onSelectionChange([]);
+    } catch {
+      toast.error('Failed to delete articles');
+      setIsDeleteDialogOpen(false);
+    }
   };
 
   const allSelected = articles.length > 0 && selectedArticles.length === articles.length;
@@ -96,9 +119,9 @@ export function ArticlesTable({ projectId, articles, isLoading, selectedArticles
       try {
         await deleteArticle.mutateAsync(articleId);
         toast.success('Article deleted successfully');
-      } catch (error) {
-        toast.error('Failed to delete article');
-      }
+    } catch {
+      toast.error('Failed to delete article');
+    }
     }
   };
 
@@ -111,7 +134,7 @@ export function ArticlesTable({ projectId, articles, isLoading, selectedArticles
       toast.success('Quote copied to clipboard');
       
       setTimeout(() => setCopiedQuoteId(null), 2000);
-    } catch (error) {
+    } catch {
       toast.error('Failed to copy quote');
     }
   };

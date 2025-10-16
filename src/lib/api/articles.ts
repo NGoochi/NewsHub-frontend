@@ -55,4 +55,22 @@ export const articlesApi = {
   deleteArticle: async (id: string): Promise<void> => {
     return await apiClient.delete(`/articles/${id}`);
   },
+
+  // Bulk delete articles (helper function)
+  bulkDeleteArticles: async (ids: string[]): Promise<{ success: number; failed: number }> => {
+    let success = 0;
+    let failed = 0;
+    
+    for (const id of ids) {
+      try {
+        await apiClient.delete(`/articles/${id}`);
+        success++;
+      } catch (error) {
+        console.error(`Failed to delete article ${id}:`, error);
+        failed++;
+      }
+    }
+    
+    return { success, failed };
+  },
 };
