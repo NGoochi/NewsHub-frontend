@@ -233,35 +233,38 @@ export function ArticlesTable({ projectId, articles, isLoading, selectedArticles
           </div>
           
           {selectedArticles.length > 0 && (
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1">
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={handleExportArticles}
-                className="text-green-400 border-green-600 hover:bg-green-900/20"
+                className="text-muted-foreground hover:text-green-500 hover:bg-green-500/10 px-2 py-1 h-7"
+                title="Export selected articles to CSV"
               >
-                <Download className="w-3 h-3 mr-2" />
-                Export Articles
+                <Download className="w-3 h-3 mr-1" />
+                <span className="text-xs">Articles</span>
               </Button>
               
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={handleExportQuotes}
-                className="text-blue-400 border-blue-600 hover:bg-blue-900/20"
+                className="text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10 px-2 py-1 h-7"
+                title="Export quotes from selected articles to CSV"
               >
-                <FileText className="w-3 h-3 mr-2" />
-                Export Quotes
+                <FileText className="w-3 h-3 mr-1" />
+                <span className="text-xs">Quotes</span>
               </Button>
               
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={handleBulkDelete}
-                className="text-red-400 border-red-600 hover:bg-red-900/20"
+                className="text-muted-foreground hover:text-red-500 hover:bg-red-500/10 px-2 py-1 h-7"
+                title="Delete selected articles"
               >
-                <Trash2 className="w-3 h-3 mr-2" />
-                Delete Selected
+                <Trash2 className="w-3 h-3 mr-1" />
+                <span className="text-xs">Delete</span>
               </Button>
             </div>
           )}
