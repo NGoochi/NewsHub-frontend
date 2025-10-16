@@ -14,6 +14,7 @@ A comprehensive web application for journalists, researchers, and media analysts
 - **Sophisticated Filtering:** Filter by categories, sentiment, stakeholders, outlets, authors
 - **Multi-Column Sorting:** Sort by date, title, outlet, or quote count
 - **Bulk Operations:** Select and delete multiple articles at once
+- **CSV Export:** Download selected articles and quotes as CSV files
 - **Real-time Search:** Full-text search across titles, authors, and content
 
 ### 🤖 AI-Powered Analysis
@@ -63,12 +64,12 @@ A comprehensive web application for journalists, researchers, and media analysts
    ```
 
 3. **Start the development server:**
-   ```bash
-   npm run dev
-   # or
-   yarn dev
-   # or
-   pnpm dev
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
    ```
 
 4. **Open your browser:**
