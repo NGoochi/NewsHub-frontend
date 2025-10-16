@@ -181,6 +181,20 @@ The frontend connects to a Node.js/Express backend API. Ensure the backend is ru
 - **Batch Processing:** 3-article batches complete in < 30 seconds
 - **Memory Usage:** Efficient memory management for large datasets
 
+## 🔄 Recent Updates
+
+### Latest Improvements
+- **✅ CSV Export Fixed:** Quote text now exports correctly in both Articles and Quotes CSV formats
+- **✅ UI Refinements:** Export buttons redesigned with subtle ghost styling for better UX
+- **✅ Enhanced Error Handling:** Improved validation and error messages for edge cases
+- **✅ Type Safety:** Updated TypeScript interfaces to match actual API response structure
+
+### Key Features Working
+- **Multi-Method Import:** NewsAPI, PDF upload, and manual entry all functional
+- **AI Analysis:** 3-article batch processing with real-time progress tracking
+- **Advanced Filtering:** Comprehensive article filtering and sorting capabilities
+- **CSV Export:** Full article data and quotes export with Excel compatibility
+
 ## 🤝 Contributing
 
 1. Fork the repository
