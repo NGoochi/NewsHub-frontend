@@ -9,6 +9,7 @@ import { useProjects, useBulkArchiveProjects } from '@/lib/hooks/useProjects';
 import { Project } from '@/types';
 import { Plus, Archive } from 'lucide-react';
 import { toast } from 'sonner';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 
 export default function Dashboard() {
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
@@ -66,6 +67,7 @@ export default function Dashboard() {
   };
 
   return (
+    <ProtectedRoute>
         <div className="min-h-screen bg-slate-950">
           <AppHeader />
           
@@ -145,5 +147,6 @@ export default function Dashboard() {
       />
 
     </div>
+    </ProtectedRoute>
   );
 }

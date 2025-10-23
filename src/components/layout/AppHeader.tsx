@@ -2,13 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuthContext } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { LogOut } from 'lucide-react';
 
-interface AppHeaderProps {
-  // No props needed - header is now static
-}
-
-export function AppHeader({}: AppHeaderProps) {
+export function AppHeader() {
   const pathname = usePathname();
+  const { logout } = useAuthContext();
 
   const navItems = [
     { href: '/', label: 'Dashboard' },
@@ -16,6 +16,10 @@ export function AppHeader({}: AppHeaderProps) {
     { href: '/settings', label: 'Settings' },
     { href: '/docs', label: 'Docs' },
   ];
+
+  const handleLogout = async () => {
+    await logout();
+  };
 
   return (
     <header className="border-b border-slate-800/20 bg-slate-900/40 backdrop-blur-sm">
@@ -47,6 +51,16 @@ export function AppHeader({}: AppHeaderProps) {
                 {item.label}
               </Link>
             ))}
+            <div className="h-6 w-px bg-slate-700 mx-2" />
+            <Button
+              onClick={handleLogout}
+              variant="outline"
+              size="sm"
+              className="text-slate-400 border-slate-700 hover:text-slate-100 hover:bg-slate-800"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
           </nav>
         </div>
       </div>

@@ -201,3 +201,24 @@ export interface ReorderCategoriesData {
     sortOrder: number;
   }>;
 }
+
+// Authentication types
+export interface LoginRequest {
+  password: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  expiresIn: number;
+  expiresAt: string;
+}
+
+export interface User {
+  id: string;
+  // Add more user fields as needed when backend provides them
+}
+
+export interface TokenVerifyResponse {
+  valid: boolean;
+  user?: User;
+}

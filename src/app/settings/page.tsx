@@ -3,9 +3,11 @@
 import { AppHeader } from '@/components/layout/AppHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArchiveTab } from '@/components/settings/ArchiveTab';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 
 export default function SettingsPage() {
   return (
+    <ProtectedRoute>
     <div className="min-h-screen bg-slate-950">
       <AppHeader />
       
@@ -35,5 +37,6 @@ export default function SettingsPage() {
         </Tabs>
       </main>
     </div>
+    </ProtectedRoute>
   );
 }
