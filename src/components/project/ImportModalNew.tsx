@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Loader2, Search, FileUp, PenSquare, X } from 'lucide-react';
 import apiClient from '@/lib/api/client';
+import axios from 'axios';
 
 // Import our new components
 import { BooleanQueryBuilder, BooleanTerm } from './BooleanQueryBuilder';
@@ -271,7 +272,7 @@ export function ImportModalNew({ projectId, open, onOpenChange, onImportStart }:
         projectId,
         query,
         articleCount
-      });
+      }) as { sessionId?: string };
 
       // TEMPORARY CONSOLE LOGGING FOR RESPONSE DEBUGGING
       console.log('=== NewsAPI Response Debug Info ===');
@@ -339,7 +340,7 @@ export function ImportModalNew({ projectId, open, onOpenChange, onImportStart }:
             setPdfMessage(`Uploading... ${percentCompleted}%`);
           }
         },
-      });
+      }) as { imported: number; failed: number };
 
       // apiClient returns data directly (response interceptor unwraps it)
       const { imported, failed } = response;
@@ -376,7 +377,7 @@ export function ImportModalNew({ projectId, open, onOpenChange, onImportStart }:
       const response = await apiClient.post('/import/manual', {
         projectId,
         articles: manualArticles
-      });
+      }) as { imported: number };
 
       // apiClient returns data directly (response interceptor unwraps it)
       const { imported } = response;
