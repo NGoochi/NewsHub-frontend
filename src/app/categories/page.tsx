@@ -21,6 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 
 export default function CategoriesPage() {
   const [showInactive, setShowInactive] = useState(false);
@@ -149,6 +150,7 @@ export default function CategoriesPage() {
   };
 
   return (
+    <ProtectedRoute>
     <div className="min-h-screen bg-slate-950">
       <AppHeader />
       <main className="max-w-7xl mx-auto px-6 py-8">
@@ -303,5 +305,6 @@ export default function CategoriesPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </ProtectedRoute>
   );
 }

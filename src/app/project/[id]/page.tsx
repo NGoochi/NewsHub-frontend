@@ -16,6 +16,7 @@ import { AnalysisQueue, AnalysisProgress } from '@/components/project/AnalysisQu
 import { DeleteConfirmDialog } from '@/components/dashboard/DeleteConfirmDialog';
 import { Article } from '@/types';
 import { toast } from 'sonner';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 
 export default function ProjectPage() {
   const params = useParams();
@@ -221,17 +222,20 @@ export default function ProjectPage() {
 
   if (projectLoading) {
     return (
+      <ProtectedRoute>
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-slate-400">Loading project...</p>
         </div>
       </div>
+      </ProtectedRoute>
     );
   }
 
   if (projectError || !project) {
     return (
+      <ProtectedRoute>
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl font-semibold text-slate-100 mb-2">Project not found</h2>
@@ -243,10 +247,12 @@ export default function ProjectPage() {
           </a>
         </div>
       </div>
+      </ProtectedRoute>
     );
   }
 
       return (
+        <ProtectedRoute>
         <div className="min-h-screen bg-slate-950">
           {/* Header */}
           <AppHeader />
@@ -335,5 +341,6 @@ export default function ProjectPage() {
             onOpenChange={setIsDeleteDialogOpen}
           />
         </div>
+        </ProtectedRoute>
       );
 }
