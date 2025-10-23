@@ -53,10 +53,19 @@ export const useDeleteArticle = () => {
   return useMutation({
     mutationFn: (id: string) => articlesApi.deleteArticle(id),
     onSuccess: (_, deletedId) => {
-      // Remove the article from cache
+      // Remove the specific article from cache
       queryClient.removeQueries({ queryKey: articleKeys.detail(deletedId) });
-      // Invalidate articles lists
-      queryClient.invalidateQueries({ queryKey: articleKeys.lists() });
+      
+      // Clear all articles cache to force fresh data
+      queryClient.removeQueries({ queryKey: articleKeys.all });
+      
+      // Invalidate all articles queries
+      queryClient.invalidateQueries({ queryKey: articleKeys.all });
+      
+      // Force immediate refetch with a small delay to ensure state updates
+      setTimeout(() => {
+        queryClient.refetchQueries({ queryKey: articleKeys.all });
+      }, 100);
     },
   });
 };

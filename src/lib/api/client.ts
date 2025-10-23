@@ -10,6 +10,28 @@ const apiClient = axios.create({
   },
 });
 
+// TEMPORARY REQUEST INTERCEPTOR FOR DEBUGGING NEWS API CALLS
+apiClient.interceptors.request.use(
+  (config) => {
+    // Log all requests that might be related to news/article operations
+    if (config.url?.includes('import') || config.url?.includes('newsapi') || config.url?.includes('articles')) {
+      console.log('=== API Client Request Debug Info ===');
+      console.log('URL:', config.url);
+      console.log('Method:', config.method?.toUpperCase());
+      console.log('Data:', config.data);
+      console.log('Params:', config.params);
+      console.log('=== End API Client Request Debug Info ===');
+    }
+    return config;
+  },
+  (error) => {
+    console.log('=== API Client Request Error ===');
+    console.log('Request Error:', error);
+    console.log('=== End API Client Request Error ===');
+    return Promise.reject(error);
+  }
+);
+
 // Create separate axios instance for long-running operations (analysis)
 export const analysisApiClient = axios.create({
   baseURL: 'http://localhost:8080',

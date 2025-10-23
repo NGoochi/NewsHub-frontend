@@ -275,7 +275,7 @@ export function ArticlesTable({ projectId, articles, isLoading, selectedArticles
                 className="text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10 px-2 py-1 h-7"
                 title="Export quotes from selected articles to CSV"
               >
-                <FileText className="w-3 h-3 mr-1" />
+                <Download className="w-3 h-3 mr-1" />
                 <span className="text-xs">Quotes</span>
               </Button>
               
