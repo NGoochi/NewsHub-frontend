@@ -4,7 +4,7 @@ import { ApiResponse } from '@/types';
 
 // Create axios instance with base configuration
 const apiClient = axios.create({
-  baseURL: 'http://localhost:8080',
+  baseURL: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080',
   timeout: 10000, // 10 seconds for normal requests
   headers: {
     'Content-Type': 'application/json',
@@ -36,7 +36,7 @@ apiClient.interceptors.request.use(
 
 // Create separate axios instance for long-running operations (analysis)
 export const analysisApiClient = axios.create({
-  baseURL: 'http://localhost:8080',
+  baseURL: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080',
   timeout: 600000, // 10 minutes for analysis operations
   headers: {
     'Content-Type': 'application/json',

@@ -98,8 +98,21 @@ function MyComponent() {
 
 ## Environment Variables
 
-Set in Next.js API routes:
-- `BACKEND_URL` - Backend API base URL (default: `http://localhost:8080`)
+Create a `.env.local` file in the project root (see `env.template` for reference):
+
+```env
+# Client-side API URL (used in browser)
+NEXT_PUBLIC_BACKEND_URL=https://your-backend-url.onrender.com
+
+# Server-side API URL (used in Next.js API routes)
+BACKEND_URL=https://your-backend-url.onrender.com
+```
+
+**Variables:**
+- `NEXT_PUBLIC_BACKEND_URL` - Backend API base URL for client-side requests (default: `http://localhost:8080`)
+- `BACKEND_URL` - Backend API base URL for server-side API routes (default: `http://localhost:8080`)
+
+**Note:** The `NEXT_PUBLIC_` prefix is required for environment variables that need to be accessible in the browser. Server-side API routes use `BACKEND_URL` without the prefix.
 
 ## Security Features
 
