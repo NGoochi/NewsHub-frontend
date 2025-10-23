@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Loader2, Search, FileUp, PenSquare, X } from 'lucide-react';
-import axios from 'axios';
+import apiClient from '@/lib/api/client';
 
 // Import our new components
 import { BooleanQueryBuilder, BooleanTerm } from './BooleanQueryBuilder';
@@ -267,7 +267,7 @@ export function ImportModalNew({ projectId, open, onOpenChange, onImportStart }:
       console.log('=== End Debug Info ===');
 
       // Send to backend endpoint: POST /import/newsapi
-      const response = await axios.post('http://localhost:8080/import/newsapi', {
+      const response = await apiClient.post('/import/newsapi', {
         projectId,
         query,
         articleCount
@@ -275,18 +275,16 @@ export function ImportModalNew({ projectId, open, onOpenChange, onImportStart }:
 
       // TEMPORARY CONSOLE LOGGING FOR RESPONSE DEBUGGING
       console.log('=== NewsAPI Response Debug Info ===');
-      console.log('Response Status:', response.status);
-      console.log('Response Data:', JSON.stringify(response.data, null, 2));
+      console.log('Response Data:', JSON.stringify(response, null, 2));
       console.log('=== End Response Debug Info ===');
 
-      if (response.data.success) {
-        toast.success('NewsAPI import started!');
-        if (onImportStart && response.data.data?.sessionId) {
-          onImportStart(response.data.data.sessionId);
-        }
-        onOpenChange(false);
-        resetForm();
+      // apiClient returns data directly (response interceptor unwraps it)
+      toast.success('NewsAPI import started!');
+      if (onImportStart && response?.sessionId) {
+        onImportStart(response.sessionId);
       }
+      onOpenChange(false);
+      resetForm();
       
     } catch (error) {
       // TEMPORARY CONSOLE LOGGING FOR ERROR DEBUGGING
@@ -330,7 +328,7 @@ export function ImportModalNew({ projectId, open, onOpenChange, onImportStart }:
       formData.append('projectId', projectId);
 
       // Send to backend endpoint: POST /import/pdf
-      const response = await axios.post('http://localhost:8080/import/pdf', formData, {
+      const response = await apiClient.post('/import/pdf', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -343,18 +341,17 @@ export function ImportModalNew({ projectId, open, onOpenChange, onImportStart }:
         },
       });
 
-      if (response.data.success) {
-        const { imported, failed } = response.data.data;
-        setPdfStatus('success');
-        setPdfArticleCount(imported);
-        setPdfMessage(`Successfully imported ${imported} articles${failed > 0 ? ` (${failed} failed)` : ''}`);
-        toast.success(`PDF processed: ${imported} articles imported`);
-        
-        setTimeout(() => {
-          onOpenChange(false);
-          resetForm();
-        }, 2000);
-      }
+      // apiClient returns data directly (response interceptor unwraps it)
+      const { imported, failed } = response;
+      setPdfStatus('success');
+      setPdfArticleCount(imported);
+      setPdfMessage(`Successfully imported ${imported} articles${failed > 0 ? ` (${failed} failed)` : ''}`);
+      toast.success(`PDF processed: ${imported} articles imported`);
+      
+      setTimeout(() => {
+        onOpenChange(false);
+        resetForm();
+      }, 2000);
       
     } catch (error) {
       console.error('PDF import error:', error);
@@ -376,17 +373,16 @@ export function ImportModalNew({ projectId, open, onOpenChange, onImportStart }:
       }
 
       // Send to backend endpoint: POST /import/manual
-      const response = await axios.post('http://localhost:8080/import/manual', {
+      const response = await apiClient.post('/import/manual', {
         projectId,
         articles: manualArticles
       });
 
-      if (response.data.success) {
-        const { imported } = response.data.data;
-        toast.success(`Successfully imported ${imported} article${imported !== 1 ? 's' : ''}`);
-        onOpenChange(false);
-        resetForm();
-      }
+      // apiClient returns data directly (response interceptor unwraps it)
+      const { imported } = response;
+      toast.success(`Successfully imported ${imported} article${imported !== 1 ? 's' : ''}`);
+      onOpenChange(false);
+      resetForm();
       
     } catch (error) {
       console.error('Manual import error:', error);
