@@ -46,7 +46,7 @@ export function ImportModalNew({ projectId, open, onOpenChange, onImportStart }:
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [articleCount, setArticleCount] = useState(1000);
+  const [articleCount, setArticleCount] = useState(100);
 
   // PDF mode state
   const [selectedPDF, setSelectedPDF] = useState<File | null>(null);
@@ -81,6 +81,58 @@ export function ImportModalNew({ projectId, open, onOpenChange, onImportStart }:
     };
 
     const buildGroupStructure = (terms: BooleanTerm[]): any => {
+      if (!terms || terms.length === 0) return null;
+      
+      // If only one term, return it directly
+      if (terms.length === 1) {
+        const term = terms[0];
+        if (term.type === 'term' && term.value) {
+          return {
+            keyword: term.value,
+            keywordLoc: 'body'
+          };
+        } else if (term.type === 'group' && term.children) {
+          return buildGroupStructure(term.children);
+        }
+        return null;
+      }
+
+      // Check if all non-first terms use the same operator
+      const operators = terms.slice(1).map(term => term.operator);
+      const allSameOperator = operators.length > 0 && operators.every(op => op === operators[0]);
+      
+      if (allSameOperator) {
+        // All terms use the same operator (OR, AND, or NOT)
+        const dominantOperator = operators[0];
+        const conditions: any[] = [];
+        
+        terms.forEach((term, index) => {
+          const operator = index === 0 ? 'AND' : term.operator;
+          
+          if (term.type === 'term' && term.value) {
+            conditions.push({
+              keyword: term.value,
+              keywordLoc: 'body'
+            });
+          } else if (term.type === 'group' && term.children) {
+            const groupQuery = buildGroupStructure(term.children);
+            if (groupQuery) {
+              conditions.push(groupQuery);
+            }
+          }
+        });
+        
+        // Return structure with the dominant operator
+        if (dominantOperator === 'OR') {
+          return { $or: conditions };
+        } else if (dominantOperator === 'NOT') {
+          return { $not: conditions[0] }; // NOT typically applies to single condition
+        } else {
+          return { $and: conditions };
+        }
+      }
+
+      // Mixed operators - separate into different arrays
       const andTerms: any[] = [];
       const orTerms: any[] = [];
       const notTerms: any[] = [];
@@ -199,12 +251,32 @@ export function ImportModalNew({ projectId, open, onOpenChange, onImportStart }:
 
       const query = buildNewsAPIQuery();
 
+      // TEMPORARY CONSOLE LOGGING FOR TROUBLESHOOTING
+      console.log('=== NewsAPI Request Debug Info ===');
+      console.log('Project ID:', projectId);
+      console.log('Article Count Limit:', articleCount);
+      console.log('Query Structure:', JSON.stringify(query, null, 2));
+      console.log('Selected Sources:', selectedSources);
+      console.log('Date Range:', { startDate, endDate });
+      console.log('Boolean Query Terms:', booleanQuery);
+      console.log('Full Request Payload:', {
+        projectId,
+        query,
+        articleCount
+      });
+      console.log('=== End Debug Info ===');
+
       // Send to backend endpoint: POST /import/newsapi
       const response = await apiClient.post('/import/newsapi', {
         projectId,
         query,
         articleCount
       });
+
+      // TEMPORARY CONSOLE LOGGING FOR RESPONSE DEBUGGING
+      console.log('=== NewsAPI Response Debug Info ===');
+      console.log('Response Data:', JSON.stringify(response, null, 2));
+      console.log('=== End Response Debug Info ===');
 
       // apiClient returns data directly (response interceptor unwraps it)
       toast.success('NewsAPI import started!');
@@ -215,6 +287,22 @@ export function ImportModalNew({ projectId, open, onOpenChange, onImportStart }:
       resetForm();
       
     } catch (error) {
+      // TEMPORARY CONSOLE LOGGING FOR ERROR DEBUGGING
+      console.log('=== NewsAPI Error Debug Info ===');
+      console.log('Error Object:', error);
+      if (axios.isAxiosError(error)) {
+        console.log('Axios Error Details:');
+        console.log('- Status:', error.response?.status);
+        console.log('- Status Text:', error.response?.statusText);
+        console.log('- Response Data:', error.response?.data);
+        console.log('- Request Config:', {
+          url: error.config?.url,
+          method: error.config?.method,
+          data: error.config?.data
+        });
+      }
+      console.log('=== End Error Debug Info ===');
+      
       console.error('NewsAPI import error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to start import');
     } finally {
@@ -320,7 +408,7 @@ export function ImportModalNew({ projectId, open, onOpenChange, onImportStart }:
     setSelectedSources([]);
     setStartDate('');
     setEndDate('');
-    setArticleCount(1000);
+    setArticleCount(100);
     setSelectedPDF(null);
     setPdfStatus('idle');
     setPdfProgress(0);
@@ -415,19 +503,19 @@ export function ImportModalNew({ projectId, open, onOpenChange, onImportStart }:
 
             <div className="space-y-2">
               <Label htmlFor="articleCount" className="text-slate-200">
-                Article Count Limit (10-3000)
+                Article Count Limit (1-1000)
               </Label>
               <Input
                 id="articleCount"
                 type="number"
-                min={10}
-                max={3000}
+                min={1}
+                max={1000}
                 value={articleCount}
-                onChange={(e) => setArticleCount(parseInt(e.target.value) || 1000)}
+                onChange={(e) => setArticleCount(parseInt(e.target.value) || 100)}
                 disabled={isSubmitting}
                 className="bg-slate-800 border-slate-700 text-slate-100"
               />
-              <p className="text-xs text-slate-400">Default: 1000 articles</p>
+              <p className="text-xs text-slate-400">Default: 100 articles</p>
             </div>
           </TabsContent>
 

@@ -155,10 +155,21 @@ export default function ProjectPage() {
     setAnalyzingArticles([]);
     setAnalysisProgress(null);
     
-    // Invalidate queries to refresh data
-    queryClient.invalidateQueries({ queryKey: ['articles', 'project', projectId] });
-    queryClient.invalidateQueries({ queryKey: ['quotes', 'project', projectId] });
-    queryClient.invalidateQueries({ queryKey: ['projects', projectId] });
+    // Clear and invalidate queries to refresh data using correct query keys
+    queryClient.removeQueries({ queryKey: ['articles'] });
+    queryClient.removeQueries({ queryKey: ['quotes'] });
+    queryClient.removeQueries({ queryKey: ['projects'] });
+    
+    queryClient.invalidateQueries({ queryKey: ['articles'] });
+    queryClient.invalidateQueries({ queryKey: ['quotes'] });
+    queryClient.invalidateQueries({ queryKey: ['projects'] });
+    
+    // Force immediate refetch with a small delay to ensure state updates
+    setTimeout(() => {
+      queryClient.refetchQueries({ queryKey: ['articles'] });
+      queryClient.refetchQueries({ queryKey: ['quotes'] });
+      queryClient.refetchQueries({ queryKey: ['projects'] });
+    }, 100);
     
     setAnalysisStatus({ type: 'completed', message: 'Analysis completed successfully!' });
     
@@ -198,9 +209,18 @@ export default function ProjectPage() {
   const handleImportComplete = () => {
     setActiveSessionId(null);
     
-    // Invalidate queries to refresh data
-    queryClient.invalidateQueries({ queryKey: ['articles', 'project', projectId] });
-    queryClient.invalidateQueries({ queryKey: ['projects', projectId] });
+    // Clear and invalidate queries to refresh data using correct query keys
+    queryClient.removeQueries({ queryKey: ['articles'] });
+    queryClient.removeQueries({ queryKey: ['projects'] });
+    
+    queryClient.invalidateQueries({ queryKey: ['articles'] });
+    queryClient.invalidateQueries({ queryKey: ['projects'] });
+    
+    // Force immediate refetch with a small delay to ensure state updates
+    setTimeout(() => {
+      queryClient.refetchQueries({ queryKey: ['articles'] });
+      queryClient.refetchQueries({ queryKey: ['projects'] });
+    }, 100);
     
     toast.success('Import completed successfully!');
   };
